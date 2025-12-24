@@ -33,9 +33,23 @@ import com.meta.wearable.dat.externalsampleapps.cameraaccess.ui.CameraAccessScaf
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.wearables.WearablesViewModel
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+
+// ========== GOVEE LIGHT CONFIGURATION ==========
+// Get your API key from: https://developer.govee.com/
+// To find your device ID and SKU, call GoveeManager.getDevices(API_KEY) 
+// and check the Logcat output for your device info.
+//
+// The new Govee OpenAPI uses different identifiers than the old API:
+// - device: The device ID (e.g., "64:09:C5:32:37:36:2D:13")
+// - sku: The product model (e.g., "H605C", "H6159")
+private const val API_KEY = "23a8325c-3f7a-4525-ad31-a80cd5bbe888"
+private const val DEVICE_ID = "9C:C6:3C:DC:75:13:BF:40"  // Get this from GoveeManager.getDevices()
+private const val SKU = "H600D"  // Get this from GoveeManager.getDevices()
+// ================================================
 
 class MainActivity : ComponentActivity() {
   companion object {
@@ -85,6 +99,8 @@ class MainActivity : ComponentActivity() {
       CameraAccessScaffold(
           viewModel = viewModel,
           onRequestWearablesPermission = ::requestWearablesPermission,
+          onTestLight = ::testGoveeLight,
+          onSetBrightness = ::setGoveeBrightness,
       )
     }
   }
@@ -101,5 +117,60 @@ class MainActivity : ComponentActivity() {
           }
         }
         .launch(PERMISSIONS)
+  }
+
+  /**
+   * Test the Govee light by turning it on, waiting 2 seconds, then turning it off.
+   * Also fetches device list first to help debug device ID issues.
+   */
+  suspend fun testGoveeLight() {
+    // First, fetch devices to verify credentials and log available devices
+    // Check Logcat with tag "GoveeManager" to see your device IDs and SKUs
+    val devices = GoveeManager.getDevices(API_KEY)
+    if (devices.isEmpty()) {
+      val error = GoveeManager.lastError ?: "No devices found or API error"
+      viewModel.setRecentError("Failed to get devices: $error")
+      // Continue anyway to try the configured device
+    } else {
+      android.util.Log.i("MainActivity", "Found ${devices.size} Govee device(s):")
+      devices.forEach { device ->
+        android.util.Log.i("MainActivity", "  Name: ${device.deviceName}")
+        android.util.Log.i("MainActivity", "  Device ID: ${device.device}")
+        android.util.Log.i("MainActivity", "  SKU: ${device.sku}")
+        android.util.Log.i("MainActivity", "  ---")
+      }
+    }
+
+    // Turn the light ON
+    val onSuccess = GoveeManager.toggleLight(API_KEY, DEVICE_ID, SKU, turnOn = true)
+    if (!onSuccess) {
+      val error = GoveeManager.lastError ?: "Unknown error"
+      viewModel.setRecentError("Failed to turn light ON: $error")
+      return
+    }
+
+    // Wait 2 seconds
+    delay(2000)
+
+    // Turn the light OFF
+    val offSuccess = GoveeManager.toggleLight(API_KEY, DEVICE_ID, SKU, turnOn = false)
+    if (!offSuccess) {
+      val error = GoveeManager.lastError ?: "Unknown error"
+      viewModel.setRecentError("Failed to turn light OFF: $error")
+    }
+  }
+
+  /**
+   * Set the Govee light brightness.
+   * @param brightness Brightness level from 0 to 100
+   */
+  suspend fun setGoveeBrightness(brightness: Int) {
+    android.util.Log.d("MainActivity", "Setting brightness to $brightness%")
+    
+    val success = GoveeManager.setBrightness(API_KEY, DEVICE_ID, SKU, brightness)
+    if (!success) {
+      val error = GoveeManager.lastError ?: "Unknown error"
+      viewModel.setRecentError("Failed to set brightness: $error")
+    }
   }
 }

@@ -66,6 +66,8 @@ dependencies {
   implementation(libs.mwdat.core)
   implementation(libs.mwdat.camera)
   implementation(libs.mwdat.mockdevice)
+  implementation("com.squareup.okhttp3:okhttp:4.12.0")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
   androidTestImplementation(libs.androidx.ui.test.junit4)
   androidTestImplementation(libs.androidx.test.uiautomator)
   androidTestImplementation(libs.androidx.test.rules)
