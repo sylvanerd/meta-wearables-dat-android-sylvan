@@ -101,6 +101,9 @@ class MainActivity : ComponentActivity() {
           onRequestWearablesPermission = ::requestWearablesPermission,
           onTestLight = ::testGoveeLight,
           onSetBrightness = ::setGoveeBrightness,
+          goveeApiKey = API_KEY,
+          goveeDeviceId = DEVICE_ID,
+          goveeSku = SKU,
       )
     }
   }

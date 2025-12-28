@@ -79,6 +79,9 @@ fun CameraAccessScaffold(
     onRequestWearablesPermission: suspend (Permission) -> PermissionStatus,
     onTestLight: suspend () -> Unit,
     onSetBrightness: suspend (Int) -> Unit,
+    goveeApiKey: String = "",
+    goveeDeviceId: String = "",
+    goveeSku: String = "",
     modifier: Modifier = Modifier,
 ) {
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -103,6 +106,9 @@ fun CameraAccessScaffold(
         uiState.isStreaming ->
             StreamScreen(
                 wearablesViewModel = viewModel,
+                goveeApiKey = goveeApiKey,
+                goveeDeviceId = goveeDeviceId,
+                goveeSku = goveeSku,
             )
         uiState.isRegistered ->
             NonStreamScreen(

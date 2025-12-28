@@ -14,6 +14,8 @@ package com.meta.wearable.dat.externalsampleapps.cameraaccess.stream
 
 import android.graphics.Bitmap
 import com.meta.wearable.dat.camera.types.StreamSessionState
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.gesture.HandGesture
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.gesture.HandState
 
 data class StreamUiState(
     val streamSessionState: StreamSessionState = StreamSessionState.STOPPED,
@@ -23,4 +25,10 @@ data class StreamUiState(
     val isCapturing: Boolean = false,
     val timerMode: TimerMode = TimerMode.UNLIMITED,
     val remainingTimeSeconds: Long? = null,
+    // Gesture recognition state
+    val handState: HandState = HandState(),
+    val isGestureEnabled: Boolean = true,
+    val currentBrightness: Int = 50,
+    val isLightOn: Boolean = false,
+    val lastGestureAction: String? = null,  // For UI feedback
 )

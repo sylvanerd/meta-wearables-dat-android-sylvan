@@ -41,22 +41,32 @@ import com.meta.wearable.dat.camera.types.VideoFrame
 import com.meta.wearable.dat.camera.types.VideoQuality
 import com.meta.wearable.dat.core.Wearables
 import com.meta.wearable.dat.core.selectors.DeviceSelector
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.GoveeManager
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.gesture.GestureConfig
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.gesture.GestureEvent
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.gesture.GestureStateManager
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.gesture.HandGestureProcessor
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.wearables.WearablesViewModel
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class StreamViewModel(
     application: Application,
     private val wearablesViewModel: WearablesViewModel,
+    private val goveeApiKey: String = "",
+    private val goveeDeviceId: String = "",
+    private val goveeSku: String = "",
 ) : AndroidViewModel(application) {
 
   companion object {
@@ -76,7 +86,20 @@ class StreamViewModel(
   private var stateJob: Job? = null
   private var timerJob: Job? = null
 
+  // Gesture recognition
+  private var handGestureProcessor: HandGestureProcessor? = null
+  private val gestureStateManager = GestureStateManager()
+  private var frameCounter = 0
+
   init {
+    // Initialize gesture processor
+    try {
+      handGestureProcessor = HandGestureProcessor(application)
+      Log.d(TAG, "HandGestureProcessor initialized")
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to initialize HandGestureProcessor", e)
+    }
+
     // Collect timer state
     timerJob =
         viewModelScope.launch {
@@ -138,6 +161,7 @@ class StreamViewModel(
     streamSession?.close()
     streamSession = null
     streamTimer.stopTimer()
+    gestureStateManager.reset()
     _uiState.update { INITIAL_STATE }
   }
 
@@ -239,6 +263,119 @@ class StreamViewModel(
 
     val bitmap = BitmapFactory.decodeByteArray(out, 0, out.size)
     _uiState.update { it.copy(videoFrame = bitmap) }
+
+    // Process gesture recognition on every Nth frame
+    if (_uiState.value.isGestureEnabled && bitmap != null) {
+      frameCounter++
+      if (frameCounter > GestureConfig.FRAME_SKIP_COUNT) {
+        frameCounter = 0
+        processGesture(bitmap)
+      }
+    }
+  }
+
+  /**
+   * Process a video frame for gesture recognition.
+   */
+  private fun processGesture(bitmap: Bitmap) {
+    val processor = handGestureProcessor ?: return
+
+    viewModelScope.launch(Dispatchers.Default) {
+      try {
+        // Detect hand landmarks
+        val handState = processor.processFrame(bitmap)
+        
+        // Update UI state with hand detection info
+        _uiState.update { it.copy(handState = handState) }
+
+        // Process gesture and get event
+        val event = gestureStateManager.processHandState(handState)
+
+        // Handle the gesture event
+        when (event) {
+          is GestureEvent.LightOn -> {
+            Log.d(TAG, "Gesture: Light ON")
+            _uiState.update { 
+              it.copy(
+                isLightOn = true, 
+                lastGestureAction = "Light ON"
+              ) 
+            }
+            controlLight(turnOn = true)
+          }
+          is GestureEvent.LightOff -> {
+            Log.d(TAG, "Gesture: Light OFF")
+            _uiState.update { 
+              it.copy(
+                isLightOn = false, 
+                lastGestureAction = "Light OFF"
+              ) 
+            }
+            controlLight(turnOn = false)
+          }
+          is GestureEvent.BrightnessChange -> {
+            val newBrightness = gestureStateManager.getCurrentBrightness()
+            Log.d(TAG, "Gesture: Brightness ${if (event.delta > 0) "UP" else "DOWN"} to $newBrightness")
+            _uiState.update { 
+              it.copy(
+                currentBrightness = newBrightness,
+                lastGestureAction = "Brightness: $newBrightness%"
+              ) 
+            }
+            setBrightness(newBrightness)
+          }
+          is GestureEvent.NoAction -> {
+            // No action needed
+          }
+        }
+      } catch (e: Exception) {
+        Log.e(TAG, "Error processing gesture", e)
+      }
+    }
+  }
+
+  /**
+   * Control the Govee light on/off.
+   */
+  private fun controlLight(turnOn: Boolean) {
+    if (goveeApiKey.isEmpty() || goveeDeviceId.isEmpty()) {
+      Log.w(TAG, "Govee credentials not configured")
+      return
+    }
+
+    viewModelScope.launch {
+      val success = GoveeManager.toggleLight(goveeApiKey, goveeDeviceId, goveeSku, turnOn)
+      if (!success) {
+        Log.e(TAG, "Failed to control light: ${GoveeManager.lastError}")
+      }
+    }
+  }
+
+  /**
+   * Set the Govee light brightness.
+   */
+  private fun setBrightness(brightness: Int) {
+    if (goveeApiKey.isEmpty() || goveeDeviceId.isEmpty()) {
+      Log.w(TAG, "Govee credentials not configured")
+      return
+    }
+
+    viewModelScope.launch {
+      val success = GoveeManager.setBrightness(goveeApiKey, goveeDeviceId, goveeSku, brightness)
+      if (!success) {
+        Log.e(TAG, "Failed to set brightness: ${GoveeManager.lastError}")
+      }
+    }
+  }
+
+  /**
+   * Toggle gesture recognition on/off.
+   */
+  fun toggleGestureRecognition() {
+    _uiState.update { it.copy(isGestureEnabled = !it.isGestureEnabled) }
+    if (!_uiState.value.isGestureEnabled) {
+      gestureStateManager.reset()
+    }
   }
 
   // Convert I420 (YYYYYYYY:UUVV) to NV21 (YYYYYYYY:VUVU)
@@ -356,11 +493,16 @@ class StreamViewModel(
     stateJob?.cancel()
     timerJob?.cancel()
     streamTimer.cleanup()
+    handGestureProcessor?.close()
+    handGestureProcessor = null
   }
 
   class Factory(
       private val application: Application,
       private val wearablesViewModel: WearablesViewModel,
+      private val goveeApiKey: String = "",
+      private val goveeDeviceId: String = "",
+      private val goveeSku: String = "",
   ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
       if (modelClass.isAssignableFrom(StreamViewModel::class.java)) {
@@ -368,6 +510,9 @@ class StreamViewModel(
         return StreamViewModel(
             application = application,
             wearablesViewModel = wearablesViewModel,
+            goveeApiKey = goveeApiKey,
+            goveeDeviceId = goveeDeviceId,
+            goveeSku = goveeSku,
         )
             as T
       }
