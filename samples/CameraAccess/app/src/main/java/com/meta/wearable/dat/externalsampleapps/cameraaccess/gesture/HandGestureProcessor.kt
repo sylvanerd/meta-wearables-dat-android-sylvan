@@ -56,8 +56,8 @@ class HandGestureProcessor(context: Context) {
                 .setBaseOptions(baseOptions)
                 .setRunningMode(RunningMode.IMAGE)
                 .setNumHands(1)  // Only track one hand for gesture control
-                .setMinHandDetectionConfidence(0.5f)
-                .setMinHandPresenceConfidence(0.5f)
+                .setMinHandDetectionConfidence(0.3f)
+                .setMinHandPresenceConfidence(0.3f)
                 .setMinTrackingConfidence(0.5f)
                 .build()
 
@@ -77,8 +77,8 @@ class HandGestureProcessor(context: Context) {
                     .setBaseOptions(baseOptions)
                     .setRunningMode(RunningMode.IMAGE)
                     .setNumHands(1)
-                    .setMinHandDetectionConfidence(0.5f)
-                    .setMinHandPresenceConfidence(0.5f)
+                    .setMinHandDetectionConfidence(0.3f)
+                    .setMinHandPresenceConfidence(0.3f)
                     .setMinTrackingConfidence(0.5f)
                     .build()
 

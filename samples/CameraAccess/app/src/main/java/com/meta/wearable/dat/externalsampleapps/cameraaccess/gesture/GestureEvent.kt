@@ -62,12 +62,12 @@ object GestureConfig {
     const val FIST_CLOSED_THRESHOLD = 0.08f    // Fingertip-to-palm distance for closed fist
 
     // Rotation thresholds
-    const val ROTATION_THRESHOLD_DEGREES = 15f  // Degrees of rotation to trigger brightness change
-    const val BRIGHTNESS_STEP = 10              // Brightness change per rotation threshold
+    const val ROTATION_THRESHOLD_DEGREES = 5f  // Degrees of rotation to trigger brightness change
+    const val BRIGHTNESS_STEP = 20              // Brightness change per rotation threshold
 
     // Debounce timings
-    const val GESTURE_DEBOUNCE_MS = 500L        // Cooldown between on/off toggles
-    const val BRIGHTNESS_DEBOUNCE_MS = 200L     // Cooldown between brightness changes
+    const val GESTURE_DEBOUNCE_MS = 200L        // Cooldown between on/off toggles
+    const val BRIGHTNESS_DEBOUNCE_MS = 150L     // Cooldown between brightness changes
 
     // Frame processing
     const val FRAME_SKIP_COUNT = 2              // Process every Nth frame (0 = process all)
