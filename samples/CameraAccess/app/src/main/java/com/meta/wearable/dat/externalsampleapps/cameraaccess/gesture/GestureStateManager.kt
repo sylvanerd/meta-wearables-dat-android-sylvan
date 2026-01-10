@@ -71,14 +71,13 @@ class GestureStateManager {
                 GestureEvent.LightOn
             }
 
-            // Transition to CLOSED_FIST (Light OFF)
+            // Transition to CLOSED_FIST (Light OFF) - IMMEDIATE, no debounce for instant response
             newGesture == HandGesture.CLOSED_FIST && 
-            lastProcessedGesture != HandGesture.CLOSED_FIST &&
-            canToggle(currentTime) -> {
-                Log.d(TAG, "Closed fist detected - turning light OFF")
+            lastProcessedGesture != HandGesture.CLOSED_FIST -> {
+                Log.d(TAG, "Closed fist detected - turning light OFF immediately")
                 currentGesture = HandGesture.CLOSED_FIST
                 lastProcessedGesture = HandGesture.CLOSED_FIST
-                lastToggleTime = currentTime
+                lastToggleTime = currentTime  // Still update to debounce next palm-on
                 isLightOn = false
                 GestureEvent.LightOff
             }
