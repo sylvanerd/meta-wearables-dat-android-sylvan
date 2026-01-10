@@ -70,6 +70,10 @@ object GestureConfig {
     const val BRIGHTNESS_DEBOUNCE_MS = 150L     // Cooldown between brightness changes
 
     // Frame processing
-    const val FRAME_SKIP_COUNT = 2              // Process every Nth frame (0 = process all)
+    const val FRAME_SKIP_COUNT = 3              // Process every Nth frame (0 = process all)
+    
+    // Gesture processing resolution (lower = faster MediaPipe processing)
+    const val GESTURE_FRAME_WIDTH = 320         // Low-res width for MediaPipe
+    const val GESTURE_FRAME_HEIGHT = 240        // Low-res height for MediaPipe
 }
 

@@ -134,7 +134,7 @@ class StreamViewModel(
         Wearables.startStreamSession(
                 getApplication(),
                 deviceSelector,
-                StreamConfiguration(videoQuality = VideoQuality.MEDIUM, 24),
+                StreamConfiguration(videoQuality = VideoQuality.HIGH, 30),
             )
             .also { streamSession = it }
     videoJob = viewModelScope.launch { streamSession.videoStream.collect { handleVideoFrame(it) } }
@@ -264,18 +264,26 @@ class StreamViewModel(
     val bitmap = BitmapFactory.decodeByteArray(out, 0, out.size)
     _uiState.update { it.copy(videoFrame = bitmap) }
 
-    // Process gesture recognition on every Nth frame
+    // Process gesture recognition on every Nth frame with scaled-down bitmap
     if (_uiState.value.isGestureEnabled && bitmap != null) {
       frameCounter++
       if (frameCounter > GestureConfig.FRAME_SKIP_COUNT) {
         frameCounter = 0
-        processGesture(bitmap)
+        // Scale down for faster MediaPipe processing
+        val gestureBitmap = Bitmap.createScaledBitmap(
+            bitmap,
+            GestureConfig.GESTURE_FRAME_WIDTH,
+            GestureConfig.GESTURE_FRAME_HEIGHT,
+            false  // No filtering = faster scaling
+        )
+        processGesture(gestureBitmap)
       }
     }
   }
 
   /**
    * Process a video frame for gesture recognition.
+   * @param bitmap Scaled-down bitmap for MediaPipe processing (will be recycled after use)
    */
   private fun processGesture(bitmap: Bitmap) {
     val processor = handGestureProcessor ?: return
@@ -330,6 +338,9 @@ class StreamViewModel(
         }
       } catch (e: Exception) {
         Log.e(TAG, "Error processing gesture", e)
+      } finally {
+        // Recycle the scaled bitmap to avoid memory leaks
+        bitmap.recycle()
       }
     }
   }
